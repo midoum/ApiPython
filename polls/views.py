@@ -1,12 +1,14 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from cryptography.fernet import Fernet
+from selenium import webdriver
+from bs4 import BeautifulSoup
 import json
 import time
 import docx2txt
 from datetime import datetime
 import requests
-
+import re
 # Create your views here.
 def index(request):
     return HttpResponse("Hello, world. You're at the polls index.")
@@ -92,54 +94,110 @@ def convert(request):
 
 #Segmentation du texte en ligne 
 def split_text(request):
+        
         text=request.GET.get('text')
         lines=str(text).split('.')
         value=[]
         i=1
+        
         for line in lines :
-            data=api_google(line)
-            phrase=line.split(" ")
-            descriptions=[]
-            titles=[]
-            score_titles=[]
-            # Scans data and fills titles with each title and description with each description
-            
-            for d in range(len(data)-1):
-                titles.append({'title':data[d]['title']})
-                descriptions.append({'description':data[d]['description']})
-                           
-            
-            
-            for title in titles:
-                words=str(title).split(" ")
-                count=0
-                for i in range(len(words)):
-                    
-                    for j in range(len(phrase)):
-                        if (words[i].lower()==phrase[j].lower()):
-                            count+=1
-                score_titles.append({'title':title,'Score':count})
-            
-        return HttpResponse(json.dumps(data))
-def api_google(query):
-   
-    url='https://www.googleapis.com/customsearch/v1/siterestrict?key=AIzaSyCWkJSbEuouJRt-1SynRTEZJyoF4DAreQg&cx=d64bab4780ada4a44&q='+query
-    response=requests.get(url)
-    response.encoding='UTF-8'
-    
-    data=response.json()
-    total_res=data['queries']['request'][0]['totalResults']
-    
-    
-    items=data['items']
-    value=[]
-    i=1
-    for item in items:
-      value.append({'index':i,'title':item['title'],'description':item['snippet']})  
-      i+=1
-
-    value.append({'total_results':total_res})
-    return value
+            if (i==1):
+                Flag=False
+            else:
+                Flag=True
+           
+            score_description,score_title,nb_results,score_final=Score_Text(line,Flag)
+            value.append({'phrase':line,'Score_final':score_final})
+            i+=1    
+        return HttpResponse(json.dumps(value))
 
 
+#fonction qui enlève les characère spéciaux de chaque ligne
+def removeSpecialChar(title):
+    normal_string =re.sub("[^A-Z]", "", title,0,re.IGNORECASE)
+    return normal_string
+
+
+#fonction qui retourne le score de chaque titre et chaque description
+def Score_Text(line,Flag):
  
+    score=0
+    score_final=0
+    sc_desc=0
+    sc_title=0
+    data_titles,data_descriptions,nb_results=Webscraping(line,Flag)
+    
+    phrase=line.split(" ")
+
+
+    descriptions=[]
+    titles=[]
+
+    score_titles=[]
+    score_description=[]
+    # Scans data and fills titles with each title and description with each description
+    
+    for d in range(len(data_titles)-1):
+        titles.append({'title':data_titles[d]})
+        descriptions.append({'description':data_descriptions[d]})
+                    
+    
+    
+    for title in titles:
+        
+        words=str(title['title']).split(" ")
+        count=0
+        for i in range(len(words)):
+            
+            for j in range(len(phrase)):
+                if (words[i].lower()==phrase[j].lower()):
+                    count+=1
+        score_titles.append({'title': title['title'],'Score':count})
+    for desc in descriptions :
+        words= str(desc['description']).split(" ")
+        count=0
+        for i in range(len(words)):
+            for j in range(len(phrase)):
+                if(words[i].lower()==phrase[j].lower()):
+                    count+=1
+        score_description.append({'description':desc['description'],'Score':count})
+    
+    for i in range(len(score_description)):
+        sc_desc+=int(score_description[i]['Score'])
+    for i in range(len(score_titles)):
+        sc_title+=int(score_titles[i]['Score'])
+
+    score_final=sc_title+sc_desc
+           
+    return score_description,score_titles,nb_results,score_final 
+
+#fonction qui utilise silinium et google web driver pour récupérer les titre et decriptions
+def Webscraping(query,Flag):
+    
+    options = webdriver.ChromeOptions()
+    if (Flag==False):
+        driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver')
+        
+    else :
+        options.add_argument("--headless")
+        driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver',chrome_options=options)
+    
+    driver.get('https://cse.google.com/cse?cx=d64bab4780ada4a44#gsc.tab=0&gsc.q='+query)
+    content = driver.page_source
+    soup = BeautifulSoup(content)
+    titles=[]
+    descriptions=[]
+    nb_results=soup.find('div',attrs={'class':'gsc-result-info'})
+
+    for res in soup.findAll('div',attrs={'class':'gsc-webResult gsc-result'}):
+        title=res.find('div',attrs={'class':'gs-title'})
+        desc=res.find('div',attrs={'class':'gs-bidi-start-align gs-snippet'})
+        if(title!=None):
+            titles.append(title.text)
+            descriptions.append(desc.text)
+        else:
+            titles.append('')
+            descriptions.append('')
+    if (Flag==False):
+        time.sleep(10)
+    return titles,descriptions,nb_results
