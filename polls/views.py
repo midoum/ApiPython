@@ -221,7 +221,7 @@ def generate_title(request):
         openai.api_key="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"
         response = openai.Completion.create(
         model="text-davinci-001",
-        prompt="write a title from this text in french \""+text+"\"",
+        prompt="écrit un titre à partir de ce texte \""+text+"\"",
         temperature=0.4,
         max_tokens=64,
         top_p=1,
@@ -245,7 +245,7 @@ def generate_description(request):
         openai.api_key="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"
         response = openai.Completion.create(
         model="text-davinci-001",
-        prompt="write a website description from this text in french \""+text+"\"",
+        prompt="écrit une paragraphe à partir de ce texte  \""+text+"\"",
         temperature=0.4,
         max_tokens=64,
         top_p=1,
