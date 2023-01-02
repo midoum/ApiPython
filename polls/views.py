@@ -253,7 +253,7 @@ def generate_description(request):
         presence_penalty=0
         )
         titre=response['choices'][0]['text']
-        title={'description':titre}
+        title={'title':titre}
     else:
         title={'error':array['Reason']}
     return HttpResponse(json.dumps(title))
