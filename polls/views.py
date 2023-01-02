@@ -105,8 +105,15 @@ def split_text(request):
                 Flag=False
             else:
                 Flag=True
-           
-            score_description,score_title,nb_results,score_final=Score_Text(line,Flag)
+#Loading du driver de webscraping 1 seule fois au debut = optimisation de temp de processing
+            options = webdriver.ChromeOptions()
+            if (Flag==False):
+                driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver')
+        
+            else :
+                options.add_argument("--headless")
+                driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver',chrome_options=options)
+            score_description,score_title,nb_results,score_final=Score_Text(line,Flag,driver)
             value.append({'phrase':line,'Score_final':score_final})
             i+=1    
         return HttpResponse(json.dumps(value))
@@ -119,13 +126,13 @@ def removeSpecialChar(title):
 
 
 #fonction qui retourne le score de chaque titre et chaque description
-def Score_Text(line,Flag):
+def Score_Text(line,Flag,driver):
  
     score=0
     score_final=0
     sc_desc=0
     sc_title=0
-    data_titles,data_descriptions,nb_results=Webscraping(line,Flag)
+    data_titles,data_descriptions,nb_results=Webscraping(line,Flag,driver)
     
     phrase=line.split(" ")
 
@@ -172,15 +179,9 @@ def Score_Text(line,Flag):
     return score_description,score_titles,nb_results,score_final 
 
 #fonction qui utilise silinium et google web driver pour récupérer les titre et decriptions
-def Webscraping(query,Flag):
+def Webscraping(query,Flag,driver):
     
-    options = webdriver.ChromeOptions()
-    if (Flag==False):
-        driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver')
-        
-    else :
-        options.add_argument("--headless")
-        driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver',chrome_options=options)
+    
     
     driver.get('https://cse.google.com/cse?cx=d64bab4780ada4a44#gsc.tab=0&gsc.q='+query)
     content = driver.page_source
