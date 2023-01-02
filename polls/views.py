@@ -9,6 +9,7 @@ import docx2txt
 from datetime import datetime
 import requests
 import re
+import openai
 # Create your views here.
 def index(request):
     return HttpResponse("Hello, world. You're at the polls index.")
@@ -94,28 +95,34 @@ def convert(request):
 
 #Segmentation du texte en ligne 
 def split_text(request):
-        
-        text=request.GET.get('text')
-        lines=str(text).split('.')
+        key=request.GET.get('key')
+        token=request.GET.get('token')
+        array=verify(request,key,token)
         value=[]
-        i=1
-        
-        for line in lines :
-            if (i==1):
-                Flag=False
-            else:
-                Flag=True
-#Loading du driver de webscraping 1 seule fois au debut = optimisation de temp de processing
-            options = webdriver.ChromeOptions()
-            if (Flag==False):
-                driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver')
-        
-            else :
-                options.add_argument("--headless")
-                driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver',chrome_options=options)
-            score_description,score_title,nb_results,score_final=Score_Text(line,Flag,driver)
-            value.append({'phrase':line,'Score_final':score_final})
-            i+=1    
+        if (array['Status']=='Success'):
+            text=request.GET.get('text')
+            lines=str(text).split('.')
+            
+            i=1
+            
+            for line in lines :
+                if (i==1):
+                    Flag=False
+                else:
+                    Flag=True
+    #Loading du driver de webscraping 1 seule fois au debut = optimisation de temp de processing
+                options = webdriver.ChromeOptions()
+                if (Flag==False):
+                    driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver')
+            
+                else :
+                    options.add_argument("--headless")
+                    driver = webdriver.chrome.webdriver.WebDriver(executable_path='chromedriver',chrome_options=options)
+                score_description,score_title,nb_results,score_final=Score_Text(line,Flag,driver)
+                value.append({'phrase':line,'Score_final':score_final})
+                i+=1   
+        else :
+            value.append({'phrase':'Error','Score_final':array['Reason']})
         return HttpResponse(json.dumps(value))
 
 
@@ -202,3 +209,53 @@ def Webscraping(query,Flag,driver):
     if (Flag==False):
         time.sleep(10)
     return titles,descriptions,nb_results
+
+#fonction qui utilise openai pour générer un texte depuis un texte
+def generate_title(request):
+    key=request.GET.get('key')
+    token=request.GET.get('token')
+    array=verify(request,key,token)
+    if (array['Status']=='Success'):
+
+        text=request.GET.get('text')
+        openai.api_key="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"
+        response = openai.Completion.create(
+        model="text-davinci-001",
+        prompt="write a title from this text in french \""+text+"\"",
+        temperature=0.4,
+        max_tokens=64,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+        )
+        titre=response['choices'][0]['text']
+        title={'title':titre}
+    else:
+        title={'error':array['Reason']}
+    return HttpResponse(json.dumps(title))
+
+#fonction pour générer une description d'un texte avec openai
+def generate_description(request):
+    key=request.GET.get('key')
+    token=request.GET.get('token')
+    array=verify(request,key,token)
+    if (array['Status']=='Success'):
+
+        text=request.GET.get('text')
+        openai.api_key="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"
+        response = openai.Completion.create(
+        model="text-davinci-001",
+        prompt="write a website description from this text in french \""+text+"\"",
+        temperature=0.4,
+        max_tokens=64,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+        )
+        titre=response['choices'][0]['text']
+        title={'description':titre}
+    else:
+        title={'error':array['Reason']}
+    return HttpResponse(json.dumps(title))
+    
+
