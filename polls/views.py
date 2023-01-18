@@ -218,7 +218,7 @@ def generate_title(request):
     if (array['Status']=='Success'):
 
         text=request.GET.get('text')
-        openai.api_key="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"
+        openai.api_key="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"
         response = openai.Completion.create(
         model="text-davinci-001",
         prompt="écrit un titre à partir de ce texte \""+text+"\"",
@@ -242,7 +242,7 @@ def generate_description(request):
     if (array['Status']=='Success'):
 
         text=request.GET.get('text')
-        openai.api_key="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"
+        openai.api_key="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"
         response = openai.Completion.create(
         model="text-davinci-001",
         prompt="écrit une paragraphe à partir de ce texte  \""+text+"\"",
